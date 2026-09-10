@@ -1,0 +1,12 @@
+'use strict';
+const CameraSource=(()=>{
+ const el=id=>document.getElementById(id);let selected='',refreshing=false;
+ try{selected=localStorage.getItem('booth-camera-id')||'';}catch(_){}
+ function constraints(front){return{audio:false,video:{...(selected?{deviceId:{exact:selected}}:{facingMode:{ideal:front?'user':'environment'}}),width:{ideal:1920},height:{ideal:1080},frameRate:{ideal:30}}};}
+ async function refresh(){if(refreshing)return;refreshing=true;el('refreshCameras').disabled=true;el('useCamera').disabled=true;try{if(!navigator.mediaDevices?.enumerateDevices)throw Error('unsupported');const cameras=(await navigator.mediaDevices.enumerateDevices()).filter(d=>d.kind==='videoinput'&&d.deviceId),list=el('cameraDevice');list.replaceChildren();const auto=document.createElement('option');auto.value='';auto.textContent='กล้องเริ่มต้นของ iPad / อุปกรณ์';list.append(auto);for(const [i,d]of cameras.entries()){const option=document.createElement('option');option.value=d.deviceId;option.textContent=d.label||`กล้อง ${i+1}`;list.append(option);}const exists=cameras.some(d=>d.deviceId===selected);if(selected&&!exists){const missing=document.createElement('option');missing.value=selected;missing.textContent='กล้องที่เคยเลือก · ยังไม่พบอุปกรณ์';list.append(missing);}list.value=selected||stream?.getVideoTracks()[0]?.getSettings().deviceId||'';const settings=stream?.getVideoTracks()[0]?.getSettings();el('cameraInfo').textContent=selected&&!exists?'ยังไม่พบกล้องที่เคยเลือก ตรวจสอบการเชื่อมต่อ':`พบกล้อง ${cameras.length} ตัว`+(settings?` · กำลังใช้ ${stream.getVideoTracks()[0].label||'กล้อง'} (${settings.width||'?'} × ${settings.height||'?'})`:' · อนุญาตกล้องก่อนเพื่อดูรายชื่อครบ');el('useCamera').disabled=false;}catch(_){el('cameraInfo').textContent='อ่านรายชื่อกล้องไม่ได้ กรุณาเปิดใน Safari และอนุญาตกล้อง';}finally{refreshing=false;el('refreshCameras').disabled=false;}}
+ async function show(){el('cameraSettings').showModal();await refresh();}
+ el('refreshCameras').onclick=refresh;el('closeCameras').onclick=()=>el('cameraSettings').close();
+ el('useCamera').onclick=async()=>{if(busy||refreshing)return;selected=el('cameraDevice').value;try{localStorage.setItem('booth-camera-id',selected);}catch(_){}el('cameraSettings').close();stop();front=false;await start();};
+ navigator.mediaDevices?.addEventListener?.('devicechange',()=>{if(el('cameraSettings').open)void refresh();});
+ return{constraints,show};
+})();
