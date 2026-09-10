@@ -2,6 +2,7 @@
 .test-venv/
 config.json
 output/
+.cloudflared/
 __pycache__/
 *.pyc
 .DS_Store

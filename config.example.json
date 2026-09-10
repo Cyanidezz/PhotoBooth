@@ -5,6 +5,15 @@
   "gphoto2": "gphoto2",
   "camera_filename": "capture-%Y%m%d-%H%M%S.jpg",
   "output_directory": "output",
-  "printer": ""
+  "printer": "",
+  "public_base_url": "",
+  "access_token": "",
+  "allowed_origins": ["https://aero-photo.vercel.app"],
+  "ice_servers": [
+    {
+      "urls": ["turns:YOUR-TURN-SERVER:5349"],
+      "username": "YOUR-TURN-USERNAME",
+      "credential": "YOUR-TURN-CREDENTIAL"
+    }
+  ]
 }
-

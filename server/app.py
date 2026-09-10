@@ -4,6 +4,7 @@ import asyncio
 import json
 import os
 import re
+import secrets
 import shutil
 import subprocess
 import uuid
@@ -11,9 +12,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 import qrcode
-from aiortc import RTCPeerConnection, RTCSessionDescription
+from aiortc import RTCConfiguration, RTCIceServer, RTCPeerConnection, RTCSessionDescription
 from aiortc.contrib.media import MediaRelay
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -23,6 +25,7 @@ from .frames import FRAMES, compose, transparent_overlay
 
 settings = load_settings()
 app = FastAPI(title="Retire Like a King Photobooth Camera Server")
+app.add_middleware(CORSMiddleware,allow_origins=list(settings.allowed_origins),allow_credentials=False,allow_methods=["GET","POST"],allow_headers=["*"])
 peers: set[RTCPeerConnection] = set()
 relay = MediaRelay()
 source_track: CaptureCardTrack | None = None
@@ -45,15 +48,46 @@ def safe_id(value: str) -> str:
     return value
 
 
+def authorized(token: str | None) -> None:
+    if settings.access_token and not secrets.compare_digest(token or "", settings.access_token):
+        raise HTTPException(401, "รหัสจับคู่ไม่ถูกต้อง")
+
+
+def authorize_request(request: Request) -> None:
+    authorized(request.query_params.get("token") or request.headers.get("x-booth-token"))
+
+
+def valid_ice_servers() -> list[dict]:
+    servers: list[dict] = []
+    for item in settings.ice_servers:
+        urls = item.get("urls", [])
+        if not urls or any("YOUR-TURN" in url for url in ([urls] if isinstance(urls, str) else urls)):
+            continue
+        servers.append(item)
+    return servers
+
+
+def peer_configuration() -> RTCConfiguration:
+    return RTCConfiguration(iceServers=[RTCIceServer(urls=item["urls"], username=item.get("username"), credential=item.get("credential")) for item in valid_ice_servers()])
+
+
 @app.get("/api/health")
-async def health():
+async def health(request: Request):
+    authorize_request(request)
     return {"ok": True, "gphoto2": shutil.which(settings.gphoto2) is not None}
 
 
+@app.get("/api/client-config")
+async def client_config(request: Request):
+    authorize_request(request)
+    return {"iceServers": valid_ice_servers(), "turnConfigured": bool(valid_ice_servers())}
+
+
 @app.post("/api/offer")
-async def offer(payload: dict):
+async def offer(payload: dict, request: Request):
+    authorize_request(request)
     global source_track
-    pc = RTCPeerConnection()
+    pc = RTCPeerConnection(configuration=peer_configuration())
     peers.add(pc)
     if source_track is None or source_track.readyState == "ended":
         source_track = CaptureCardTrack(settings)
@@ -72,7 +106,8 @@ async def offer(payload: dict):
 
 
 @app.get("/api/frame/{frame_id}.png")
-async def prepared_frame(frame_id: str):
+async def prepared_frame(frame_id: str, request: Request):
+    authorize_request(request)
     if frame_id not in FRAMES:
         raise HTTPException(404, "ไม่พบเฟรม")
     path = settings.output_path / f"frame-{frame_id}.png"
@@ -102,8 +137,11 @@ async def finish(websocket: WebSocket, state: BoothSession):
     state.result_id = uuid.uuid4().hex
     destination = settings.output_path / f"{state.result_id}.jpg"
     await asyncio.to_thread(compose, state.frame_id, state.photos, destination)
-    base = str(websocket.url).replace("ws://", "http://").replace("wss://", "https://").split("/ws/")[0]
-    result_url = f"{base}/r/{state.result_id}"
+    forwarded_host = websocket.headers.get("x-forwarded-host") or websocket.headers.get("host")
+    forwarded_proto = websocket.headers.get("x-forwarded-proto") or ("https" if websocket.url.scheme == "wss" else "http")
+    detected_base = f"{forwarded_proto}://{forwarded_host}" if forwarded_host else ""
+    base = settings.public_base_url.rstrip("/") or detected_base
+    result_url = f"{base}/r/{state.result_id}?token={settings.access_token}"
     qrcode.make(result_url).save(settings.output_path / f"{state.result_id}.png")
     await send(websocket, "complete", image=f"/media/{state.result_id}.jpg", qr=f"/media/{state.result_id}.png", result=result_url)
 
@@ -112,6 +150,7 @@ async def finish(websocket: WebSocket, state: BoothSession):
 async def control(websocket: WebSocket, session_id: str):
     try:
         safe_id(session_id)
+        authorized(websocket.query_params.get("token"))
     except HTTPException:
         await websocket.close(code=1008)
         return
@@ -152,7 +191,8 @@ async def control(websocket: WebSocket, session_id: str):
 
 
 @app.get("/r/{result_id}")
-async def result(result_id: str):
+async def result(result_id: str, request: Request):
+    authorize_request(request)
     safe_id(result_id)
     path = settings.output_path / f"{result_id}.jpg"
     if not path.exists():
@@ -161,7 +201,8 @@ async def result(result_id: str):
 
 
 @app.post("/api/print/{result_id}")
-async def print_result(result_id: str):
+async def print_result(result_id: str, request: Request):
+    authorize_request(request)
     safe_id(result_id)
     path = settings.output_path / f"{result_id}.jpg"
     if not path.exists():
@@ -176,7 +217,19 @@ async def print_result(result_id: str):
     return {"ok": True}
 
 
-app.mount("/media", StaticFiles(directory=settings.output_path), name="media")
+@app.get("/media/{file_path:path}")
+async def media(file_path: str, request: Request):
+    authorize_request(request)
+    target = (settings.output_path / file_path).resolve()
+    try:
+        target.relative_to(settings.output_path.resolve())
+    except ValueError:
+        raise HTTPException(404)
+    if not target.is_file():
+        raise HTTPException(404)
+    return FileResponse(target)
+
+
 app.mount("/", StaticFiles(directory=ROOT, html=True), name="web")
 
 

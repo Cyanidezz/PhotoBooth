@@ -79,3 +79,27 @@ python run_server.py --cert cert.pem --key key.pem
 ```
 
 จากนั้นเข้า `https://IP-ของเครื่อง:8000`
+
+## เปิดผ่าน aero-photo.vercel.app จากอินเทอร์เน็ต
+
+การเปิดจากภายนอกใช้ Cloudflare Tunnel สำหรับ HTTPS/WebSocket และใช้ TURN สำหรับส่งวิดีโอ WebRTC ข้ามเครือข่าย
+
+1. ติดตั้ง Tunnel บน Mac:
+
+   ```bash
+   brew install cloudflared
+   ```
+
+2. สมัครบริการ TURN แล้วใส่ `urls`, `username` และ `credential` ใน `config.json` ตัวอย่างบริการที่ใช้ได้คือ Cloudflare Realtime TURN หรือ Metered TURN
+3. เปิดระบบด้วย:
+
+   ```bash
+   git pull --ff-only
+   chmod +x start-public.command
+   ./start-public.command
+   ```
+
+4. คัดลอก URL รูปแบบ `https://...trycloudflare.com` จาก Terminal
+5. เปิด `https://aero-photo.vercel.app/` เลือก **ตั้งค่า Camera Server** แล้วกรอก URL และรหัสจับคู่ที่ Terminal แสดง
+
+Quick Tunnel จะได้ URL ใหม่เมื่อเปิดโปรแกรมใหม่ หากต้องการ URL เดิมทุกครั้ง ให้สร้าง Named Tunnel และกำหนด `public_base_url` ใน `config.json` เป็นโดเมนนั้น

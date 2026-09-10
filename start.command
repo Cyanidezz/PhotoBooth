@@ -12,16 +12,15 @@ if [ ! -d .venv ]; then
   python3 -m venv .venv
 fi
 . .venv/bin/activate
-python -m pip install -r requirements.txt
+python -m pip install --upgrade pip setuptools wheel
+python -m pip install --only-binary=av -r requirements.txt
 
-if [ ! -f config.json ]; then
-  cp config.example.json config.json
-fi
+PAIRING_CODE=$(python setup_config.py)
 
 ADDRESS=$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || true)
 echo ""
-echo "เปิด Photobooth บน iPad: http://${ADDRESS:-IP-ของเครื่องนี้}:8000"
+echo "เปิด Photobooth บน iPad: http://${ADDRESS:-IP-ของเครื่องนี้}:8000/?token=${PAIRING_CODE}"
+echo "รหัสจับคู่: ${PAIRING_CODE}"
 echo "กด Control+C เพื่อปิด Camera Server"
 echo ""
 python run_server.py
-

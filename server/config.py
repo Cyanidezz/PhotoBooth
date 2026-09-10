@@ -16,6 +16,10 @@ class Settings:
     camera_filename: str = "capture-%Y%m%d-%H%M%S.jpg"
     output_directory: str = "output"
     printer: str = ""
+    public_base_url: str = ""
+    access_token: str = ""
+    allowed_origins: tuple[str, ...] | list[str] = ("https://aero-photo.vercel.app",)
+    ice_servers: tuple[dict, ...] | list[dict] = ()
 
     @property
     def output_path(self) -> Path:
@@ -31,4 +35,3 @@ def load_settings() -> Settings:
     raw = json.loads(path.read_text(encoding="utf-8"))
     allowed = Settings.__dataclass_fields__.keys()
     return Settings(**{key: value for key, value in raw.items() if key in allowed})
-
