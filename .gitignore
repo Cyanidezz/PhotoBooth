@@ -1,6 +1,7 @@
 .venv/
 .test-venv/
 config.json
+config.invalid-*.json
 output/
 .cloudflared/
 __pycache__/
