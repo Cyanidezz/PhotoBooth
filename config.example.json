@@ -1,7 +1,4 @@
 {
-  "capture_device": 0,
-  "capture_width": 1920,
-  "capture_height": 1080,
   "gphoto2": "gphoto2",
   "camera_filename": "capture-%Y%m%d-%H%M%S.jpg",
   "output_directory": "output",

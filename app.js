@@ -17,10 +17,10 @@ async function connectPreview(){
  clearTimeout(previewRetry);const old=peer;peer=null;old?.close();
  const settings=await fetch(RemoteConfig.endpoint('/api/client-config')).then(async response=>{if(!response.ok)throw Error(response.status===401?'รหัสจับคู่ไม่ถูกต้อง':'อ่านการตั้งค่า Camera Server ไม่ได้');return response.json();});
  const pc=new RTCPeerConnection({iceServers:settings.iceServers||[]});peer=pc;const video=$('preview');
- $('serverState').textContent='กำลังรอภาพจาก Capture Card…';
+ $('serverState').textContent='กำลังรอ Live View จาก Nikon ผ่าน USB…';
  pc.addTransceiver('video',{direction:'recvonly'});
  pc.ontrack=event=>{if(peer!==pc)return;video.srcObject=event.streams[0]||new MediaStream([event.track]);video.muted=true;video.playsInline=true;
-  video.onplaying=()=>{if(peer===pc&&video.videoWidth>0&&video.readyState>=2){$('serverState').textContent='Live View พร้อมใช้งาน';if(!busy&&!resultId)status('ได้รับภาพจาก Capture Card แล้ว');}};
+  video.onplaying=()=>{if(peer===pc&&video.videoWidth>0&&video.readyState>=2){$('serverState').textContent='Live View พร้อมใช้งาน';if(!busy&&!resultId)status('ได้รับ Live View จาก Nikon แล้ว');}};
   video.play().catch(()=>{if(peer===pc)$('serverState').textContent='แตะเลือกเฟรมเพื่อเริ่มแสดงภาพ';});
  };
  pc.onconnectionstatechange=()=>{if(peer===pc&&['failed','disconnected'].includes(pc.connectionState)){$('serverState').textContent='Live View ขาดการเชื่อมต่อ กำลังลองใหม่…';clearTimeout(previewRetry);previewRetry=setTimeout(()=>connectPreview().catch(previewError),1500);}};
@@ -29,7 +29,7 @@ async function connectPreview(){
   if(pc.iceGatheringState!=='complete')await new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(Error('หมดเวลารอการเชื่อมต่อเครือข่าย')),12000);pc.onicegatheringstatechange=()=>{if(pc.iceGatheringState==='complete'){clearTimeout(timer);resolve();}};});
   if(peer!==pc)return;
   const response=await fetch(RemoteConfig.endpoint('/api/offer'),{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(pc.localDescription)});
-  if(!response.ok)throw Error('Camera Server เปิด Capture Card ไม่สำเร็จ');
+  if(!response.ok)throw Error('Camera Server เปิด Nikon Live View ไม่สำเร็จ');
   await pc.setRemoteDescription(await response.json());
  }catch(error){if(peer===pc){peer=null;pc.close();}throw error;}
 }

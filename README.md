@@ -1,23 +1,22 @@
 # Nikon D7500 · iPad Photobooth
 
-ระบบ Photobooth แบบ Camera Server สำหรับ Nikon D7500 ใช้ภาพ Live View จาก HDMI Capture Card และถ่ายภาพ JPEG ความละเอียดเต็มผ่าน USB
+ระบบ Photobooth แบบ Camera Server สำหรับ Nikon D7500 ใช้ USB เส้นเดียวสำหรับ Live View และถ่ายภาพ JPEG ความละเอียดเต็ม
 
 ## การเชื่อมต่อ
 
 ```text
-Nikon D7500 HDMI ──> UVC Capture Card ──> Mac/PC
 Nikon D7500 USB  ───────────────────────> Mac/PC
 iPad             ── Wi-Fi / WebRTC ───> Camera Server
 ```
 
-หน้าเว็บบน iPad รับ Live View ผ่าน WebRTC และส่งคำสั่งถ่ายผ่าน WebSocket โปรแกรมบนเครื่อง Camera Server เรียก `gphoto2 --capture-image-and-download` แล้วประกอบ JPEG เต็มความละเอียดเข้ากับ PNG frame
+Camera Server รับ Live View ด้วย `gphoto2 --capture-movie --stdout` แล้วส่งไปหน้าเว็บผ่าน WebRTC เมื่อ iPad ส่งคำสั่งถ่ายผ่าน WebSocket ระบบจะหยุด Live View ชั่วคราว เรียก `gphoto2 --capture-image-and-download` ประกอบ JPEG เต็มความละเอียดเข้ากับ PNG frame แล้วเปิด Live View กลับอัตโนมัติ
 
 ## รองรับ
 
 - เลือกเฟรม 1 Shot และ 3 Shot
 - โหมด 3 Shot แบบต่อเนื่องหรือกดทีละช่อง
 - เวลานับถอยหลัง 0–15 วินาที พร้อมเสียง
-- Preview จาก HDMI Capture Card ผ่าน WebRTC
+- Preview จาก Nikon ผ่าน USB และ WebRTC
 - สั่ง Nikon D7500 ถ่ายผ่าน USB และใช้ JPEG ที่ดาวน์โหลดจริง
 - ครอปภาพแบบเต็มช่องและวาง PNG โปร่งใส
 - ถ่ายใหม่ ดาวน์โหลดผ่าน QR Code และสั่งพิมพ์จาก Camera Server
@@ -30,8 +29,8 @@ iPad             ── Wi-Fi / WebRTC ───> Camera Server
    brew install python@3.11 gphoto2
    ```
 
-2. ต่อ Capture Card และ Nikon D7500 แล้วปิด Photos, Image Capture และแอปอื่นที่จับกล้องอยู่
-3. ตั้ง Nikon เป็น JPEG Fine, เปิด Live View, เปิด Clean HDMI และตั้ง Auto Off Timer ให้นานพอ
+2. ต่อ Nikon D7500 กับ Mac ด้วยสาย USB Data และถอด HDMI/Capture Card ออก
+3. ปิด Photos, Image Capture และแอปอื่นที่จับกล้องอยู่ ตั้ง Nikon เป็น JPEG Fine และตั้ง Auto Off Timer ให้นานพอ
 4. ดับเบิลคลิก `start.command` หรือเปิด Terminal แล้วรัน:
 
    ```bash
@@ -41,22 +40,18 @@ iPad             ── Wi-Fi / WebRTC ───> Camera Server
 
 5. ต่อ iPad กับ Wi-Fi เดียวกัน แล้วเปิด URL ที่โปรแกรมแสดง เช่น `http://192.168.1.50:8000`
 
-## ตั้งค่า Capture Card และเครื่องพิมพ์
+## ตั้งค่า Nikon และเครื่องพิมพ์
 
 ครั้งแรกโปรแกรมจะสร้าง `config.json` จาก `config.example.json`
 
 ```json
 {
-  "capture_device": 0,
-  "capture_width": 1920,
-  "capture_height": 1080,
   "gphoto2": "gphoto2",
   "output_directory": "output",
   "printer": ""
 }
 ```
 
-- ถ้ามี Video Device หลายตัว ให้เปลี่ยน `capture_device` เป็น `1`, `2` ตามลำดับ แล้วเปิดโปรแกรมใหม่
 - macOS ใช้คำสั่ง `lpstat -p` ดูชื่อเครื่องพิมพ์ แล้วใส่ชื่อใน `printer`
 - เว้น `printer` ว่างไว้เพื่อใช้ Default Printer
 - ผลลัพธ์และภาพต้นฉบับเก็บในโฟลเดอร์ `output`

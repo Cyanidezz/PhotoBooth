@@ -19,7 +19,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from .camera import CaptureCardTrack, capture_full_resolution
+from .camera import NikonCamera, NikonPreviewTrack
 from .config import ROOT, load_settings
 from .frames import FRAMES, compose, transparent_overlay
 
@@ -28,7 +28,8 @@ app = FastAPI(title="Retire Like a King Photobooth Camera Server")
 app.add_middleware(CORSMiddleware,allow_origins=list(settings.allowed_origins),allow_credentials=False,allow_methods=["GET","POST"],allow_headers=["*"])
 peers: set[RTCPeerConnection] = set()
 relay = MediaRelay()
-source_track: CaptureCardTrack | None = None
+camera = NikonCamera(settings)
+source_track: NikonPreviewTrack | None = None
 
 
 @dataclass
@@ -90,7 +91,7 @@ async def offer(payload: dict, request: Request):
     pc = RTCPeerConnection(configuration=peer_configuration())
     peers.add(pc)
     if source_track is None or source_track.readyState == "ended":
-        source_track = CaptureCardTrack(settings)
+        source_track = NikonPreviewTrack(camera)
     pc.addTrack(relay.subscribe(source_track))
 
     @pc.on("connectionstatechange")
@@ -128,7 +129,7 @@ async def take_one(websocket: WebSocket, state: BoothSession, countdown: int):
     session_dir = settings.output_path / "sessions" / websocket.state.session_id
     session_dir.mkdir(parents=True, exist_ok=True)
     async with camera_lock:
-        photo = await asyncio.to_thread(capture_full_resolution, settings, session_dir, len(state.photos) + 1)
+        photo = await asyncio.to_thread(camera.capture, session_dir, len(state.photos) + 1)
     state.photos.append(photo)
     await send(websocket, "shot_ready", count=len(state.photos), url=f"/media/sessions/{websocket.state.session_id}/{photo.name}")
 
@@ -238,3 +239,4 @@ async def shutdown():
     await asyncio.gather(*(peer.close() for peer in peers), return_exceptions=True)
     if source_track:
         source_track.stop()
+    camera.close()

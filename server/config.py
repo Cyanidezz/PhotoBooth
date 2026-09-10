@@ -9,9 +9,6 @@ ROOT = Path(__file__).resolve().parent.parent
 
 @dataclass(frozen=True)
 class Settings:
-    capture_device: int | str = 0
-    capture_width: int = 1920
-    capture_height: int = 1080
     gphoto2: str = "gphoto2"
     camera_filename: str = "capture-%Y%m%d-%H%M%S.jpg"
     output_directory: str = "output"
