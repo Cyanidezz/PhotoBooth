@@ -77,7 +77,7 @@ python run_server.py --cert cert.pem --key key.pem
 
 ## เปิดผ่าน aero-photo.vercel.app จากอินเทอร์เน็ต
 
-การเปิดจากภายนอกใช้ Cloudflare Tunnel สำหรับ HTTPS/WebSocket และใช้ TURN สำหรับส่งวิดีโอ WebRTC ข้ามเครือข่าย
+การเปิดจากภายนอกใช้ Cloudflare Tunnel สำหรับ HTTPS/WebSocket และ Live View ระบบจะใช้ MJPEG ผ่าน HTTPS อัตโนมัติ จึงไม่จำเป็นต้องสมัคร TURN
 
 1. ติดตั้ง Tunnel บน Mac:
 
@@ -85,7 +85,7 @@ python run_server.py --cert cert.pem --key key.pem
    brew install cloudflared
    ```
 
-2. สมัครบริการ TURN แล้วใส่ `urls`, `username` และ `credential` ใน `config.json` ตัวอย่างบริการที่ใช้ได้คือ Cloudflare Realtime TURN หรือ Metered TURN
+2. TURN เป็นตัวเลือกเสริม หากใส่ `urls`, `username` และ `credential` ใน `config.json` ระบบจะใช้ WebRTC; ถ้าไม่ใส่จะใช้ MJPEG ผ่าน HTTPS Tunnel
 3. เปิดระบบด้วย:
 
    ```bash

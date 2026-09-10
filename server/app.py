@@ -16,7 +16,7 @@ from aiortc import RTCConfiguration, RTCIceServer, RTCPeerConnection, RTCSession
 from aiortc.contrib.media import MediaRelay
 from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 from .camera import NikonCamera, NikonPreviewTrack
@@ -82,6 +82,30 @@ async def health(request: Request):
 async def client_config(request: Request):
     authorize_request(request)
     return {"iceServers": valid_ice_servers(), "turnConfigured": bool(valid_ice_servers())}
+
+
+@app.get("/api/preview.mjpg")
+async def preview_mjpeg(request: Request):
+    authorize_request(request)
+    camera.start_preview()
+    try:
+        first_jpeg, first_sequence = await asyncio.to_thread(camera.jpeg_after, -1)
+    except Exception as error:
+        raise HTTPException(503, str(error)) from error
+
+    async def frames():
+        sequence = first_sequence
+        yield b"--frame\r\nContent-Type: image/jpeg\r\nCache-Control: no-store\r\n\r\n" + first_jpeg + b"\r\n"
+        while True:
+            try:
+                jpeg, sequence = await asyncio.to_thread(camera.jpeg_after, sequence)
+                yield b"--frame\r\nContent-Type: image/jpeg\r\nCache-Control: no-store\r\n\r\n" + jpeg + b"\r\n"
+            except asyncio.CancelledError:
+                break
+            except Exception:
+                break
+
+    return StreamingResponse(frames(), media_type="multipart/x-mixed-replace; boundary=frame", headers={"Cache-Control": "no-store, no-cache, must-revalidate"})
 
 
 @app.post("/api/offer")

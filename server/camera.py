@@ -84,6 +84,13 @@ class NikonCamera:
                 self._condition.wait(min(remaining, 1))
             return self._latest.copy(), self._sequence
 
+    def jpeg_after(self, sequence: int, timeout: float = 30) -> tuple[bytes, int]:
+        image, sequence = self.frame_after(sequence, timeout)
+        ok, encoded = cv2.imencode(".jpg", image, [cv2.IMWRITE_JPEG_QUALITY, 82])
+        if not ok:
+            raise RuntimeError("แปลง Live View เป็น JPEG ไม่สำเร็จ")
+        return encoded.tobytes(), sequence
+
     def preview_error(self) -> str:
         process = self._process
         if not process or process.poll() is None or not process.stderr:
