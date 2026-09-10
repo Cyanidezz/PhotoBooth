@@ -7,13 +7,13 @@ from datetime import datetime
 from pathlib import Path
 
 import cv2
-from aiortc import MediaStreamTrack
+from aiortc import VideoStreamTrack
 from av import VideoFrame
 
 from .config import Settings
 
 
-class CaptureCardTrack(MediaStreamTrack):
+class CaptureCardTrack(VideoStreamTrack):
     kind = "video"
 
     def __init__(self, settings: Settings):
@@ -61,4 +61,3 @@ def capture_full_resolution(settings: Settings, session_dir: Path, shot_number: 
         detail = (result.stderr or result.stdout or "gphoto2 ไม่ได้สร้างไฟล์ภาพ").strip()
         raise RuntimeError(detail[-500:])
     return destination
-
